@@ -919,10 +919,10 @@ func runRigStart(cmd *cobra.Command, args []string) error {
 }
 
 func runRigShutdown(cmd *cobra.Command, args []string) error {
-	return runRigShutdownWithOptions(cmd, args, true)
+	return runRigShutdownWithOptions(args, true)
 }
 
-func runRigShutdownWithOptions(cmd *cobra.Command, args []string, stopBdDaemon bool) error {
+func runRigShutdownWithOptions(args []string, stopBdDaemon bool) error {
 	rigName := args[0]
 
 	// Find workspace
@@ -1028,7 +1028,7 @@ func runRigReboot(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Rebooting rig %s...\n\n", style.Bold.Render(rigName))
 
 	// Shutdown first
-	if err := runRigShutdownWithOptions(cmd, args, false); err != nil {
+	if err := runRigShutdownWithOptions(args, false); err != nil {
 		// If shutdown fails due to uncommitted work, propagate the error
 		return err
 	}
