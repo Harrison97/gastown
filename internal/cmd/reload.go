@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/steveyegge/gastown/internal/beads"
 	"github.com/steveyegge/gastown/internal/config"
 	"github.com/steveyegge/gastown/internal/daemon"
 	"github.com/steveyegge/gastown/internal/deacon"
@@ -222,32 +223,14 @@ func runReload(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Phase 5: Kill bd daemons by PID (avoids pkill pattern matching)
+	// Phase 5: Stop bd daemons via RPC (clean shutdown)
 	for _, ws := range bdWorkspaces {
-		pidFile := filepath.Join(ws, ".beads", "daemon.pid")
-		data, err := os.ReadFile(pidFile)
-		if err != nil {
-			printReloadStatus(fmt.Sprintf("bd daemon (%s)", shortPath(ws)), true, "not running")
-			continue
+		beadsDir := filepath.Join(ws, ".beads")
+		if err := beads.StopBdDaemonForWorkspace(beadsDir); err != nil {
+			printReloadStatus(fmt.Sprintf("bd daemon (%s)", shortPath(ws)), false, err.Error())
+		} else {
+			printReloadStatus(fmt.Sprintf("bd daemon (%s)", shortPath(ws)), true, "stopped")
 		}
-		pid, _ := strconv.Atoi(strings.TrimSpace(string(data)))
-		if pid == 0 {
-			printReloadStatus(fmt.Sprintf("bd daemon (%s)", shortPath(ws)), true, "not running")
-			continue
-		}
-		// Check if process is actually running
-		if _, err := os.Stat(fmt.Sprintf("/proc/%d", pid)); err != nil {
-			printReloadStatus(fmt.Sprintf("bd daemon (%s)", shortPath(ws)), true, "not running")
-			continue
-		}
-		// Kill by specific PID - SIGTERM then SIGKILL
-		_ = exec.Command("kill", "-TERM", strconv.Itoa(pid)).Run()
-		time.Sleep(500 * time.Millisecond)
-		// Check if still alive, force kill if needed
-		if _, err := os.Stat(fmt.Sprintf("/proc/%d", pid)); err == nil {
-			_ = exec.Command("kill", "-9", strconv.Itoa(pid)).Run()
-		}
-		printReloadStatus(fmt.Sprintf("bd daemon (%s)", shortPath(ws)), true, "stopped")
 	}
 
 	fmt.Println()
