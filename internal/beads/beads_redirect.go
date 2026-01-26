@@ -2,6 +2,7 @@
 package beads
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -253,6 +254,87 @@ func SetupRedirect(townRoot, worktreePath string) error {
 	if configData, err := os.ReadFile(townConfigPath); err == nil {
 		worktreeConfigPath := filepath.Join(worktreeBeadsDir, "config.yaml")
 		os.WriteFile(worktreeConfigPath, configData, 0644)
+	}
+
+	return nil
+}
+
+// CopyBeadEntryToWorktree copies a specific bead entry from the town's issues.jsonl
+// to the worktree's issues.jsonl to enable cross-context bead resolution.
+//
+// This is called when a polecat is created with a hook_bead, to ensure the
+// polecat's local beads database has the target bead entry so it can resolve
+// the bead even if using a redirect to a different beads location.
+//
+// Parameters:
+//   - townBeadsDir: the town's .beads directory (e.g., ~/gt/.beads)
+//   - worktreeBeadsDir: the worktree's .beads directory
+//   - beadID: the bead ID to copy (e.g., "hq-d91")
+//
+// Returns nil if the bead is copied successfully, or if the copy is not needed
+// (e.g., bead not found - this is non-fatal). Returns an error only if there's
+// a critical filesystem error during the operation.
+func CopyBeadEntryToWorktree(townBeadsDir, worktreeBeadsDir, beadID string) error {
+	if beadID == "" {
+		return nil // No bead to copy
+	}
+
+	// Read town's issues.jsonl
+	townIssuesPath := filepath.Join(townBeadsDir, "issues.jsonl")
+	townData, err := os.ReadFile(townIssuesPath) //nolint:gosec // G304: path is constructed internally
+	if err != nil {
+		// Non-fatal: town beads may not be available
+		return nil
+	}
+
+	// Find the line matching beadID (JSONL format: one JSON object per line)
+	var matchedLine string
+	lines := strings.Split(strings.TrimSpace(string(townData)), "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		// Parse JSON to check if it's the bead we're looking for
+		var obj map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &obj); err != nil {
+			continue // Skip malformed lines
+		}
+		if id, ok := obj["id"].(string); ok && id == beadID {
+			matchedLine = line
+			break
+		}
+	}
+
+	if matchedLine == "" {
+		// Bead not found in town database - non-fatal
+		return nil
+	}
+
+	// Append to worktree's issues.jsonl
+	worktreeIssuesPath := filepath.Join(worktreeBeadsDir, "issues.jsonl")
+
+	// Read existing contents if file exists
+	var existingData []byte
+	if data, err := os.ReadFile(worktreeIssuesPath); err == nil { //nolint:gosec // G304: path is constructed internally
+		existingData = data
+	}
+
+	// Build new contents
+	var newContents string
+	if len(existingData) > 0 {
+		newContents = string(existingData)
+		if !strings.HasSuffix(newContents, "\n") {
+			newContents += "\n"
+		}
+		newContents += matchedLine + "\n"
+	} else {
+		newContents = matchedLine + "\n"
+	}
+
+	// Write back
+	if err := os.WriteFile(worktreeIssuesPath, []byte(newContents), 0644); err != nil { //nolint:gosec // G304: path is constructed internally
+		// Non-fatal: polecat can still try routing
+		return nil
 	}
 
 	return nil

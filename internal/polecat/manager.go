@@ -409,7 +409,7 @@ func (m *Manager) AddWithOptions(name string, opts AddOptions) (*Polecat, error)
 
 	// Set up shared beads: polecat uses rig's .beads via redirect file.
 	// This eliminates git sync overhead - all polecats share one database.
-	if err := m.setupSharedBeads(clonePath); err != nil {
+	if err := m.setupSharedBeads(clonePath, opts.HookBead); err != nil {
 		// Non-fatal - polecat can still work with local beads
 		// Log warning but don't fail the spawn
 		fmt.Printf("Warning: could not set up shared beads: %v\n", err)
@@ -740,7 +740,7 @@ func (m *Manager) RepairWorktreeWithOptions(name string, force bool, opts AddOpt
 	// Gas Town context is injected ephemerally via SessionStart hook (gt prime).
 
 	// Set up shared beads
-	if err := m.setupSharedBeads(newClonePath); err != nil {
+	if err := m.setupSharedBeads(newClonePath, opts.HookBead); err != nil {
 		fmt.Printf("Warning: could not set up shared beads: %v\n", err)
 	}
 
@@ -1050,9 +1050,23 @@ func (m *Manager) loadFromBeads(name string) (*Polecat, error) {
 
 // setupSharedBeads creates a redirect file so the polecat uses the rig's shared .beads database.
 // This eliminates the need for git sync between polecat clones - all polecats share one database.
-func (m *Manager) setupSharedBeads(clonePath string) error {
+// If hookBeadID is provided, copies the bead entry to the worktree's .beads/issues.jsonl
+// to enable cross-context bead resolution.
+func (m *Manager) setupSharedBeads(clonePath, hookBeadID string) error {
 	townRoot := filepath.Dir(m.rig.Path)
-	return beads.SetupRedirect(townRoot, clonePath)
+	if err := beads.SetupRedirect(townRoot, clonePath); err != nil {
+		return err
+	}
+
+	// Copy hook bead entry if provided
+	if hookBeadID != "" {
+		townBeadsDir := filepath.Join(townRoot, ".beads")
+		worktreeBeadsDir := filepath.Join(clonePath, ".beads")
+		// Non-fatal: if copy fails, polecat can still try routing
+		_ = beads.CopyBeadEntryToWorktree(townBeadsDir, worktreeBeadsDir, hookBeadID)
+	}
+
+	return nil
 }
 
 // CleanupStaleBranches removes orphaned polecat branches that are no longer in use.
