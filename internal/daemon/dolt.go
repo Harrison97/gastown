@@ -271,9 +271,7 @@ func (m *DoltServerManager) startLocked() error {
 	cmd.Stderr = logFile
 
 	// Detach from this process group so it survives daemon restart
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true,
-	}
+	cmd.SysProcAttr = doltSysProcAttr()
 
 	if err := cmd.Start(); err != nil {
 		logFile.Close()
