@@ -53,6 +53,7 @@ var beadsExemptCommands = map[string]bool{
 	"install":    true,
 	"tap":        true,
 	"dnd":        true,
+	"reload":     true,
 }
 
 // Commands exempt from the town root branch warning.
