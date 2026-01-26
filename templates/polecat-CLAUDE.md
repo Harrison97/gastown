@@ -48,7 +48,7 @@ File discovered work as beads (`bd create`) but don't fix it yourself.
 
 - **ALL file operations** must be within this directory
 - **Use absolute paths** when writing files to be explicit
-- **Your cwd should always be**: `~/gt/{{rig}}/polecats/{{name}}/`
+- **Your cwd should always be**: `~/gt/{{rig}}/polecats/{{name}}/{{rig}}/`
 - **NEVER** write to `~/gt/{{rig}}/` (rig root) or other directories
 
 If you need to create files, verify your path:
