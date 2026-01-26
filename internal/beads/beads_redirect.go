@@ -248,5 +248,12 @@ func SetupRedirect(townRoot, worktreePath string) error {
 		os.WriteFile(worktreeRoutesPath, routesData, 0644)
 	}
 
+	// Copy config.yaml from town root to enable custom types
+	townConfigPath := filepath.Join(townRoot, ".beads", "config.yaml")
+	if configData, err := os.ReadFile(townConfigPath); err == nil {
+		worktreeConfigPath := filepath.Join(worktreeBeadsDir, "config.yaml")
+		os.WriteFile(worktreeConfigPath, configData, 0644)
+	}
+
 	return nil
 }
