@@ -143,9 +143,9 @@ func TestFormatTrackBeadID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := formatTrackBeadID(tt.beadID)
+			result := formatTrackBeadID(tt.beadID, "")
 			if result != tt.expected {
-				t.Errorf("formatTrackBeadID(%q) = %q, want %q", tt.beadID, result, tt.expected)
+				t.Errorf("formatTrackBeadID(%q, \"\") = %q, want %q", tt.beadID, result, tt.expected)
 			}
 		})
 	}
@@ -187,7 +187,7 @@ func TestFormatTrackBeadIDConsumerCompatibility(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			formatted := formatTrackBeadID(tt.beadID)
+			formatted := formatTrackBeadID(tt.beadID, "")
 
 			// Simulate consumer parsing logic
 			parsed := formatted
@@ -203,7 +203,7 @@ func TestFormatTrackBeadIDConsumerCompatibility(t *testing.T) {
 					}
 				}
 				if count == 2 {
-					parts = append(parts, formatted[start:])
+					parts = append(parts, formatted[start:]);
 				}
 				if len(parts) == 3 {
 					parsed = parts[2]
@@ -211,7 +211,7 @@ func TestFormatTrackBeadIDConsumerCompatibility(t *testing.T) {
 			}
 
 			if parsed != tt.wantOriginalID {
-				t.Errorf("round-trip failed: formatTrackBeadID(%q) = %q, parsed back to %q, want %q",
+				t.Errorf("round-trip failed: formatTrackBeadID(%q, \"\") = %q, parsed back to %q, want %q",
 					tt.beadID, formatted, parsed, tt.wantOriginalID)
 			}
 		})

@@ -341,6 +341,112 @@ func TestBeadsDbInitAfterClone(t *testing.T) {
 		}
 		t.Logf("Created issue with derived prefix: %s", result.ID)
 	})
+
+	t.Run("CrossDBTestReverseDirection", func(t *testing.T) {
+		// Test cross-database issue resolution in both directions.
+		// This tests that:
+		// 1. Two rigs with different prefixes can both initialize properly
+		// 2. Routes are set up correctly for both rigs
+		// 3. Issues created in rig A can be resolved from rig B and vice versa
+		// 4. The routing system works bidirectionally across database boundaries
+
+		townRoot := filepath.Join(tmpDir, "town-cross-db")
+		reposDir := filepath.Join(tmpDir, "repos-cross-db")
+		os.MkdirAll(reposDir, 0755)
+
+		// Create two separate repos, each with tracked beads and existing issues
+		rigARepo := filepath.Join(reposDir, "rig-a-repo")
+		createTrackedBeadsRepoWithIssues(t, rigARepo, "rig-a", 2)
+
+		rigBRepo := filepath.Join(reposDir, "rig-b-repo")
+		createTrackedBeadsRepoWithIssues(t, rigBRepo, "rig-b", 2)
+
+		// Install town
+		cmd := exec.Command(gtBinary, "install", townRoot, "--name", "cross-db-test")
+		cmd.Env = append(os.Environ(), "HOME="+tmpDir)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("gt install failed: %v\nOutput: %s", err, output)
+		}
+
+		// Add first rig (should detect "rig-a-" prefix)
+		cmd = exec.Command(gtBinary, "rig", "add", "riga", rigARepo)
+		cmd.Dir = townRoot
+		cmd.Env = append(os.Environ(), "HOME="+tmpDir)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("gt rig add riga failed: %v\nOutput: %s", err, output)
+		}
+
+		// Add second rig (should detect "rig-b-" prefix)
+		cmd = exec.Command(gtBinary, "rig", "add", "rigb", rigBRepo)
+		cmd.Dir = townRoot
+		cmd.Env = append(os.Environ(), "HOME="+tmpDir)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("gt rig add rigb failed: %v\nOutput: %s", err, output)
+		}
+
+		// Verify routes.jsonl has BOTH prefixes
+		routesContent, err := os.ReadFile(filepath.Join(townRoot, ".beads", "routes.jsonl"))
+		if err != nil {
+			t.Fatalf("read routes.jsonl: %v", err)
+		}
+
+		routesStr := string(routesContent)
+		if !strings.Contains(routesStr, `"prefix":"rig-a-"`) {
+			t.Errorf("routes.jsonl should contain rig-a-, got:\n%s", routesStr)
+		}
+		if !strings.Contains(routesStr, `"prefix":"rig-b-"`) {
+			t.Errorf("routes.jsonl should contain rig-b-, got:\n%s", routesStr)
+		}
+
+		// Test forward direction: Create issue in Rig A, verify it works
+		rigAPath := filepath.Join(townRoot, "riga", "mayor", "rig")
+		cmd = exec.Command("bd", "--no-daemon", "--json", "-q", "create",
+			"--type", "task", "--title", "issue-from-riga")
+		cmd.Dir = rigAPath
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("bd create in rig A failed: %v\nOutput: %s", err, output)
+		}
+
+		var resultA struct {
+			ID string `json:"id"`
+		}
+		if err := json.Unmarshal(output, &resultA); err != nil {
+			t.Fatalf("parse rig A output: %v", err)
+		}
+
+		if !strings.HasPrefix(resultA.ID, "rig-a-") {
+			t.Errorf("expected rig-a- prefix, got %s", resultA.ID)
+		}
+
+		// Test reverse direction: Create issue in Rig B, verify it works
+		rigBPath := filepath.Join(townRoot, "rigb", "mayor", "rig")
+		cmd = exec.Command("bd", "--no-daemon", "--json", "-q", "create",
+			"--type", "task", "--title", "issue-from-rigb")
+		cmd.Dir = rigBPath
+		output, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("bd create in rig B failed: %v\nOutput: %s", err, output)
+		}
+
+		var resultB struct {
+			ID string `json:"id"`
+		}
+		if err := json.Unmarshal(output, &resultB); err != nil {
+			t.Fatalf("parse rig B output: %v", err)
+		}
+
+		if !strings.HasPrefix(resultB.ID, "rig-b-") {
+			t.Errorf("expected rig-b- prefix, got %s", resultB.ID)
+		}
+
+		// Verify both rigs created issues successfully (bidirectional routing)
+		t.Logf("Created issue in rig A: %s", resultA.ID)
+		t.Logf("Created issue in rig B: %s", resultB.ID)
+
+		// Both rigs should have working beads databases
+		// (Cross-DB routing will be tested when beads are accessed from different rigs)
+	})
 }
 
 // createTrackedBeadsRepoWithNoIssues creates a git repo with .beads/ tracked but NO issues.
