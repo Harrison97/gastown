@@ -62,12 +62,13 @@ func EnsureGitignorePatterns(worktreePath string) error {
 	gitignorePath := filepath.Join(worktreePath, ".gitignore")
 
 	// Required patterns for Gas Town worktrees
+	// Note: .beads/ is NOT included here because Beads provides its own
+	// .gitignore handling in .beads/.gitignore. Including it here breaks
+	// bd sync by preventing .beads/issues.jsonl from being tracked.
 	requiredPatterns := []string{
 		".runtime/",
 		".claude/",
-		".beads/",
 		".logs/",
-		".beads/",
 	}
 
 	// Read existing gitignore content
