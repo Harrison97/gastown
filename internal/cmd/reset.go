@@ -179,8 +179,9 @@ func runReset(cmd *cobra.Command, args []string) error {
 	}
 
 	// Step 9: Recreate the beads database
+	// Use --from-jsonl to prevent bd from scanning git history and reimporting old issues
 	fmt.Println("Recreating beads database...")
-	initCmd := exec.Command("bd", "init", "--quiet")
+	initCmd := exec.Command("bd", "init", "--quiet", "--from-jsonl")
 	initCmd.Dir = townRoot
 	if err := initCmd.Run(); err != nil {
 		fmt.Printf("  %s Could not recreate database: %v\n", style.Dim.Render("Warning:"), err)
