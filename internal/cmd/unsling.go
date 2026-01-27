@@ -118,6 +118,22 @@ func runUnsling(cmd *cobra.Command, args []string) error {
 
 	// Check if agent has work hooked (via hook_bead field)
 	hookedBeadID := agentBead.HookBead
+
+	// Fallback: if hook_bead is empty, query for beads with status=hooked assigned to this agent.
+	// This handles inconsistency where bead was hooked without updating agent's hook_bead field
+	// (e.g., via `gt hook` instead of `gt sling`, or cross-database scenarios).
+	if hookedBeadID == "" {
+		hookedBeads, err := b.List(beads.ListOptions{
+			Status:   beads.StatusHooked,
+			Assignee: agentID,
+			Priority: -1,
+		})
+		if err == nil && len(hookedBeads) > 0 {
+			// Found orphan hooked bead - use it
+			hookedBeadID = hookedBeads[0].ID
+		}
+	}
+
 	if hookedBeadID == "" {
 		if targetAgent != "" {
 			fmt.Printf("%s No work hooked for %s\n", style.Dim.Render("ℹ"), agentID)
@@ -158,12 +174,25 @@ func runUnsling(cmd *cobra.Command, args []string) error {
 
 	if unslingDryRun {
 		fmt.Printf("Would clear hook_bead from agent bead %s\n", agentBeadID)
+		fmt.Printf("Would set bead %s status back to open\n", hookedBeadID)
 		return nil
 	}
 
 	// Clear the hook (gt-zecmc: removed agent_state update - observable from tmux)
 	if err := b.ClearHookBead(agentBeadID); err != nil {
 		return fmt.Errorf("clearing hook from agent bead %s: %w", agentBeadID, err)
+	}
+
+	// Also set the hooked bead's status back to "open" and clear assignee.
+	// This ensures the bead is properly released, not just the agent's hook_bead field.
+	// Use a fresh beads instance resolved to the correct database for the bead.
+	beadWorkDir := beads.ResolveHookDir(townRoot, hookedBeadID, "")
+	beadDB := beads.New(beadWorkDir)
+	openStatus := "open"
+	emptyAssignee := ""
+	if err := beadDB.Update(hookedBeadID, beads.UpdateOptions{Status: &openStatus, Assignee: &emptyAssignee}); err != nil {
+		// Warn but don't fail - the agent hook is cleared, this is cleanup
+		fmt.Printf("%s Could not set bead %s status to open: %v\n", style.Dim.Render("⚠"), hookedBeadID, err)
 	}
 
 	// Log unhook event
