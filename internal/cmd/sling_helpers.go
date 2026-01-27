@@ -76,15 +76,26 @@ func getBeadInfo(beadID string) (*beadInfo, error) {
 	return &infos[0], nil
 }
 
+// resolveBeadWorkDir resolves the correct working directory for bd commands on a bead.
+// Uses prefix-based routing via beads.ResolveHookDir to find the database where the
+// bead lives, enabling cross-database operations (town beads ↔ rig beads).
+// Returns the directory path, or error if town root can't be found.
+func resolveBeadWorkDir(beadID string) (string, error) {
+	townRoot, err := workspace.FindFromCwd()
+	if err != nil {
+		return "", fmt.Errorf("finding town root: %w", err)
+	}
+	return beads.ResolveHookDir(townRoot, beadID, ""), nil
+}
+
 // storeArgsInBead stores args in the bead's description using attached_args field.
 // This enables no-tmux mode where agents discover args via gt prime / bd show.
 func storeArgsInBead(beadID, args string) error {
 	// Resolve working directory for bd commands based on bead prefix routing
-	townRoot, err := workspace.FindFromCwd()
+	workDir, err := resolveBeadWorkDir(beadID)
 	if err != nil {
-		return fmt.Errorf("finding town root: %w", err)
+		return err
 	}
-	workDir := beads.ResolveHookDir(townRoot, beadID, "")
 
 	// Get the bead to preserve existing description content
 	showCmd := exec.Command("bd", "--no-daemon", "show", beadID, "--json", "--allow-stale")
@@ -146,11 +157,10 @@ func storeDispatcherInBead(beadID, dispatcher string) error {
 	}
 
 	// Resolve working directory for bd commands based on bead prefix routing
-	townRoot, err := workspace.FindFromCwd()
+	workDir, err := resolveBeadWorkDir(beadID)
 	if err != nil {
-		return fmt.Errorf("finding town root: %w", err)
+		return err
 	}
-	workDir := beads.ResolveHookDir(townRoot, beadID, "")
 
 	// Get the bead to preserve existing description content
 	// Uses --no-daemon with --allow-stale to avoid database sync race conditions
@@ -208,11 +218,10 @@ func storeAttachedMoleculeInBead(beadID, moleculeID string) error {
 	}
 
 	// Resolve working directory for bd commands based on bead prefix routing
-	townRoot, err := workspace.FindFromCwd()
+	workDir, err := resolveBeadWorkDir(beadID)
 	if err != nil {
-		return fmt.Errorf("finding town root: %w", err)
+		return err
 	}
-	workDir := beads.ResolveHookDir(townRoot, beadID, "")
 
 	issue := &beads.Issue{}
 	if logPath == "" {
@@ -275,11 +284,10 @@ func storeNoMergeInBead(beadID string, noMerge bool) error {
 	}
 
 	// Resolve working directory for bd commands based on bead prefix routing
-	townRoot, err := workspace.FindFromCwd()
+	workDir, err := resolveBeadWorkDir(beadID)
 	if err != nil {
-		return fmt.Errorf("finding town root: %w", err)
+		return err
 	}
-	workDir := beads.ResolveHookDir(townRoot, beadID, "")
 
 	// Get the bead to preserve existing description content
 	// Uses --no-daemon with --allow-stale to avoid database sync race conditions
