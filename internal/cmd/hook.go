@@ -237,13 +237,21 @@ func runHook(_ *cobra.Command, args []string) error {
 	// Hook the bead using bd update (discovery-based approach)
 	// Run from town root so bd can find routes.jsonl for prefix-based routing.
 	// This is essential for hooking convoys (hq-* prefix) stored in town beads.
-	hookCmd := exec.Command("bd", "update", beadID, "--status=hooked", "--assignee="+agentID)
-	if townRoot, err := workspace.FindFromCwd(); err == nil {
-		hookCmd.Dir = townRoot
+	townRoot, _ := workspace.FindFromCwd()
+	hookUpdateCmd := exec.Command("bd", "update", beadID, "--status=hooked", "--assignee="+agentID)
+	if townRoot != "" {
+		hookUpdateCmd.Dir = townRoot
 	}
-	hookCmd.Stderr = os.Stderr
-	if err := hookCmd.Run(); err != nil {
+	hookUpdateCmd.Stderr = os.Stderr
+	if err := hookUpdateCmd.Run(); err != nil {
 		return fmt.Errorf("hooking bead: %w", err)
+	}
+
+	// Update agent bead's hook_bead field (keeps agent and bead in sync)
+	// This prevents inconsistency where gt hook sets status but not agent's hook_bead field.
+	if townRoot != "" {
+		townBeadsDir := filepath.Join(townRoot, ".beads")
+		updateAgentHookBead(agentID, beadID, "", townBeadsDir)
 	}
 
 	fmt.Printf("%s Work attached to hook (hooked bead)\n", style.Bold.Render("✓"))
