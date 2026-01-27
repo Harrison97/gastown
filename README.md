@@ -1,5 +1,7 @@
 # Gas Town
 
+<!-- Last updated: 2026-01-26T18:15 -->
+
 **Multi-agent orchestration system for Claude Code with persistent work tracking**
 
 ## Overview
