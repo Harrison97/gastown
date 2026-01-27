@@ -316,7 +316,12 @@ func executeConvoyFormula(f *formulaData, formulaName, targetRig string) error {
 	townBeads := filepath.Join(townRoot, ".beads")
 
 	// Step 1: Create convoy bead
-	convoyID := fmt.Sprintf("hq-cv-%s", generateFormulaShortID())
+	// Use configured issue prefix instead of hardcoded "hq"
+	issuePrefix := getBeadsIssuePrefix(townRoot)
+	if issuePrefix == "" {
+		issuePrefix = "hq" // fallback
+	}
+	convoyID := fmt.Sprintf("%s-cv-%s", issuePrefix, generateFormulaShortID())
 	convoyTitle := fmt.Sprintf("%s: %s", formulaName, f.Description)
 	if len(convoyTitle) > 80 {
 		convoyTitle = convoyTitle[:77] + "..."
