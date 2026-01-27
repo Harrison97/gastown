@@ -246,6 +246,12 @@ func runHook(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("hooking bead: %w", err)
 	}
 
+	// Update agent bead's hook_bead field (enables gt hook --clear to find the hook)
+	// Using empty workDir triggers fallback to town root in updateAgentHookBead.
+	// The townBeadsDir is derived from townRoot inside the helper function.
+	cwd, _ := os.Getwd()
+	updateAgentHookBead(agentID, beadID, cwd, "")
+
 	fmt.Printf("%s Work attached to hook (hooked bead)\n", style.Bold.Render("✓"))
 	fmt.Printf("  Use 'gt handoff' to restart with this work\n")
 	fmt.Printf("  Use 'gt hook' to see hook status\n")
