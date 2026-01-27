@@ -491,6 +491,14 @@ func runDeaconStop(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("killing session: %w", err)
 	}
 
+	// Clean up hooked beads - they're now orphaned since the session is dead.
+	townRoot, _ := workspace.FindFromCwdOrError()
+	if townRoot != "" {
+		if err := closeStaleDeaconHooks(townRoot); err != nil {
+			style.PrintWarning("failed to clean deacon hooks: %v", err)
+		}
+	}
+
 	fmt.Printf("%s Deacon session stopped.\n", style.Bold.Render("✓"))
 	return nil
 }
