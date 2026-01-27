@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/steveyegge/gastown/internal/beads"
 	"github.com/steveyegge/gastown/internal/polecat"
-	"github.com/steveyegge/gastown/internal/refinery"
 	"github.com/steveyegge/gastown/internal/style"
 	"github.com/steveyegge/gastown/internal/tmux"
 )
@@ -152,8 +151,6 @@ func runRigDock(cmd *cobra.Command, args []string) error {
 		fmt.Printf("  Stopping %d polecat session(s)...\n", len(polecatInfos))
 		if err := polecatMgr.StopAll(false); err != nil {
 			fmt.Printf("  %s Failed to stop polecat sessions: %v\n", style.Warning.Render("!"), err)
-		} else {
-			stoppedAgents = append(stoppedAgents, fmt.Sprintf("%d polecat session(s) stopped", len(polecatInfos)))
 		}
 	}
 
