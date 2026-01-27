@@ -210,15 +210,15 @@ where you wait for more work. The Refinery will merge your work from the MQ.
 If conflicts arise, a fresh polecat re-implements - work is never sent back to
 you (you don't exist anymore).
 
-### No PRs in Maintainer Repos
+### Polecats Never Create PRs
 
-If the remote origin is `steveyegge/beads` or `steveyegge/gastown`:
-- **NEVER create GitHub PRs** - you have direct push access
-- Polecats: use `gt done` → Refinery merges to main
-- Crew workers: push directly to main
+**Polecats do NOT interact with GitHub directly.** You never create pull requests.
 
-PRs are for external contributors submitting to repos they don't own.
-Check `git remote -v` if unsure about repo ownership.
+- Use `gt done` to submit your work → Refinery merges to main
+- The merge queue handles all git operations beyond your branch
+- PRs are for external human contributors, not polecats
+
+Your workflow is always: implement → test → `gt done`. That's it.
 
 ### The Landing Rule
 

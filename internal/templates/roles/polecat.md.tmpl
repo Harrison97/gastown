@@ -29,27 +29,9 @@ Polecats are **self-cleaning**. When you run `gt done`:
 
 There is no "idle" state. There is no "waiting for more work". Done means GONE.
 
-**Two workflow types:**
-
-**1. Merge Queue Workflow (gastown, beads repos):**
-- Push branch to origin
-- `gt done` submits to Refinery merge queue
-- Refinery handles merge to main
-
-**2. PR Workflow (longeye and similar repos):**
-- Create GitHub PR
-- Monitor for CI and review feedback
-- Address any issues
-- `gt done` when PR is approved and CI green
-- Maintainer or Refinery merges the PR
-
-**In both cases, you still run `gt done` at the end.** The difference is WHEN:
-- Merge queue: After implementation and tests pass
-- PR workflow: After PR is approved and CI is green
-
 **Polecats do NOT:**
 - Push directly to main (`git push origin main` - WRONG)
-- Merge their own PRs (maintainer or Refinery does this)
+- Create GitHub PRs (Refinery handles merges)
 - Wait around after running `gt done`
 
 **If you have finished your implementation work, your ONLY next action is:**
@@ -304,49 +286,6 @@ bd ready                   # See next step
 
 When all steps are done, the molecule gets squashed automatically when you run `gt done`.
 
-## PR Workflow (for repos that use pull requests)
-
-**Applies to:** longeye and other repos that require code review via GitHub PRs
-
-The **mol-polecat-work** molecule now includes PR creation and monitoring steps for
-repos that use PR-based workflows. Here's what's different:
-
-### Old Workflow (Merge Queue)
-1. Implement → Test → `gt done` → Refinery merges
-
-### New Workflow (PR-based)
-1. Implement → Test
-2. **Create PR** (with branch naming: adam/YY/M/description)
-3. **Monitor PR** - Check CI and review status
-4. **Address feedback** - Fix issues if CI fails or reviewers comment
-5. **Verify ready** - Confirm CI green and PR approved
-6. **`gt done`** - Mark complete and exit (maintainer will merge)
-
-### Key Differences
-
-**You keep the bead OPEN** during PR review. Don't mark complete until:
-- ✓ All CI checks passing
-- ✓ Review comments addressed
-- ✓ PR approved by reviewer
-
-**You may cycle multiple times** while waiting for review or fixing feedback:
-```bash
-# If context filling while waiting for review
-gt handoff -s "Waiting for PR review" -m "Issue: <issue>
-PR: #<number>
-Status: <current state>
-Next: Continue monitoring"
-```
-
-Your next session resumes from the current molecule step.
-
-**Branch naming is critical:**
-- Format: `adam/YY/M/<short-description>`
-- Example: `adam/26/1/fix-social-media-parser`
-- This matches the user convention for the repo
-
-**You do NOT merge the PR** - a maintainer or Refinery does that.
-
 ## Before Signaling Done (MANDATORY)
 
 > ⚠️ **CRITICAL**: Work is NOT complete until you run `gt done`
@@ -369,15 +308,15 @@ queue. The Witness handles the rest.
 **Note:** Do NOT manually close the root issue with `bd close`. The Refinery
 closes it after successful merge. This enables conflict-resolution retries.
 
-### No PRs in Maintainer Repos
+### Polecats Never Create PRs
 
-If the remote origin is `steveyegge/beads` or `steveyegge/gastown`:
-- **NEVER create GitHub PRs** - you have direct push access
-- Polecats: use `gt done` → Refinery merges to main
-- Crew workers: push directly to main
+**Polecats do NOT interact with GitHub directly.** You never create pull requests.
 
-PRs are for external contributors submitting to repos they don't own.
-Check `git remote -v` if unsure about repo ownership.
+- Use `gt done` to submit your work → Refinery merges to main
+- The merge queue handles all git operations beyond your branch
+- PRs are for external human contributors, not polecats
+
+Your workflow is always: implement → test → `gt done`. That's it.
 
 ### The Landing Rule
 
