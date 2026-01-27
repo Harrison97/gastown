@@ -29,6 +29,18 @@ func generateShortID() string {
 	return strings.ToLower(base32.StdEncoding.EncodeToString(b)[:5])
 }
 
+// getBeadsIssuePrefix gets the configured issue_prefix from beads config.
+// Returns empty string if not configured or on error.
+func getBeadsIssuePrefix(townRoot string) string {
+	cmd := exec.Command("bd", "config", "get", "issue_prefix")
+	cmd.Dir = townRoot
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
 // looksLikeIssueID checks if a string looks like a beads issue ID.
 // Issue IDs have the format: prefix-id (e.g., gt-abc, bd-xyz, hq-123).
 func looksLikeIssueID(s string) bool {
@@ -344,8 +356,15 @@ func runConvoyCreate(cmd *cobra.Command, args []string) error {
 		description += fmt.Sprintf("\nMolecule: %s", convoyMolecule)
 	}
 
-	// Generate convoy ID with cv- prefix using town name
-	convoyID := fmt.Sprintf("%s-cv-%s", townName, generateShortID())
+	// Get the configured issue prefix from beads config
+	// This ensures convoy IDs match the database prefix (e.g., "GT-cv-xxx" not "gt-cv-xxx")
+	issuePrefix := getBeadsIssuePrefix(townRoot)
+	if issuePrefix == "" {
+		issuePrefix = townName // fallback to town name if not configured
+	}
+
+	// Generate convoy ID with cv- prefix
+	convoyID := fmt.Sprintf("%s-cv-%s", issuePrefix, generateShortID())
 
 	createArgs := []string{
 		"create",
