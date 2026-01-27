@@ -23,7 +23,8 @@ This command:
 1. Stops running agents (deacon, polecats, etc. - mayor preserved by default)
 2. Deletes the beads database (all issues, wisps, molecules)
 3. Clears activity logs and event files
-4. Preserves configuration (config.yaml, formulas, etc.)
+4. Recreates a fresh beads database
+5. Preserves configuration (config.yaml, formulas, etc.)
 
 Use --all to also stop the mayor.
 
@@ -175,6 +176,16 @@ func runReset(cmd *cobra.Command, args []string) error {
 		if err := os.Remove(path); err == nil {
 			fmt.Printf("  %s Cleared %s\n", style.Bold.Render("✓"), filepath.Base(path))
 		}
+	}
+
+	// Step 9: Recreate the beads database
+	fmt.Println("Recreating beads database...")
+	initCmd := exec.Command("bd", "init", "--quiet")
+	initCmd.Dir = townRoot
+	if err := initCmd.Run(); err != nil {
+		fmt.Printf("  %s Could not recreate database: %v\n", style.Dim.Render("Warning:"), err)
+	} else {
+		fmt.Printf("  %s Recreated beads database\n", style.Bold.Render("✓"))
 	}
 
 	fmt.Println()
