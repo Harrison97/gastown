@@ -391,9 +391,33 @@ func runConvoyCreate(cmd *cobra.Command, args []string) error {
 
 	// Notify address is stored in description (line 166-168) and read from there
 
-	// Add 'tracks' relations for each tracked issue
+	// Validate that provided issues exist before adding them
+	// This prevents creating empty convoys when all issue IDs are typos
+	validIssues := make([]string, 0, len(trackedIssues))
+	if len(trackedIssues) > 0 {
+		// Batch validate all issues
+		detailsMap := getIssueDetailsBatch(trackedIssues)
+		for _, issueID := range trackedIssues {
+			if details, ok := detailsMap[issueID]; ok && details != nil {
+				validIssues = append(validIssues, issueID)
+			} else {
+				style.PrintWarning("issue %s not found - skipping", issueID)
+			}
+		}
+
+		// If issues were provided but none are valid, fail
+		if len(validIssues) == 0 {
+			// Clean up: delete the empty convoy we just created
+			deleteCmd := exec.Command("bd", "delete", convoyID, "--force")
+			deleteCmd.Dir = townRoot
+			_ = deleteCmd.Run() // Best effort cleanup
+			return fmt.Errorf("no valid issues to track - convoy not created")
+		}
+	}
+
+	// Add 'tracks' relations for each validated issue
 	trackedCount := 0
-	for _, issueID := range trackedIssues {
+	for _, issueID := range validIssues {
 		// Use --type=tracks for non-blocking tracking relation
 		depArgs := []string{"dep", "add", convoyID, issueID, "--type=tracks"}
 		depCmd := exec.Command("bd", depArgs...)
@@ -416,8 +440,8 @@ func runConvoyCreate(cmd *cobra.Command, args []string) error {
 	fmt.Printf("%s Created convoy 🚚 %s\n\n", style.Bold.Render("✓"), convoyID)
 	fmt.Printf("  Name:     %s\n", name)
 	fmt.Printf("  Tracking: %d issues\n", trackedCount)
-	if len(trackedIssues) > 0 {
-		fmt.Printf("  Issues:   %s\n", strings.Join(trackedIssues, ", "))
+	if len(validIssues) > 0 {
+		fmt.Printf("  Issues:   %s\n", strings.Join(validIssues, ", "))
 	}
 	if owner != "" {
 		fmt.Printf("  Owner:    %s\n", owner)
