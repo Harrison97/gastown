@@ -143,9 +143,9 @@ func TestFormatTrackBeadID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := formatTrackBeadID(tt.beadID)
+			result := formatTrackBeadID(tt.beadID, "/tmp")
 			if result != tt.expected {
-				t.Errorf("formatTrackBeadID(%q) = %q, want %q", tt.beadID, result, tt.expected)
+				t.Errorf("formatTrackBeadID(%q, \"/tmp\") = %q, want %q", tt.beadID, result, tt.expected)
 			}
 		})
 	}
@@ -187,7 +187,7 @@ func TestFormatTrackBeadIDConsumerCompatibility(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			formatted := formatTrackBeadID(tt.beadID)
+			formatted := formatTrackBeadID(tt.beadID, "/tmp")
 
 			// Simulate consumer parsing logic
 			parsed := formatted
