@@ -98,7 +98,7 @@ func createAutoConvoy(beadID, beadTitle string) (string, error) {
 	}
 
 	// Add tracking relation: convoy tracks the issue
-	trackBeadID := formatTrackBeadID(beadID)
+	trackBeadID := formatTrackBeadID(beadID, townRoot)
 	depArgs := []string{"--no-daemon", "dep", "add", convoyID, trackBeadID, "--type=tracks"}
 	depCmd := exec.Command("bd", depArgs...)
 	depCmd.Dir = townRoot // Run from town root so bd can find config
@@ -113,17 +113,19 @@ func createAutoConvoy(beadID, beadTitle string) (string, error) {
 }
 
 // formatTrackBeadID formats a bead ID for use in convoy tracking dependencies.
-// Cross-rig beads (non-hq- prefixed) are formatted as external references
-// so the bd tool can resolve them when running from HQ context.
-//
-// Examples:
-//   - "hq-abc123" -> "hq-abc123" (HQ beads unchanged)
-//   - "gt-mol-xyz" -> "external:gt-mol:gt-mol-xyz"
-//   - "beads-task-123" -> "external:beads-task:beads-task-123"
-func formatTrackBeadID(beadID string) string {
+// Local beads (matching configured issue prefix) are returned as-is.
+// Cross-rig beads are formatted as external references.
+func formatTrackBeadID(beadID string, townRoot string) string {
+	// Get configured prefix to check if this is a local bead
+	issuePrefix := getBeadsIssuePrefix(townRoot)
+	if issuePrefix != "" && strings.HasPrefix(beadID, issuePrefix+"-") {
+		return beadID // Local bead, return as-is
+	}
+	// Legacy: also check for hq- prefix
 	if strings.HasPrefix(beadID, "hq-") {
 		return beadID
 	}
+	// Cross-rig bead - format as external reference
 	parts := strings.SplitN(beadID, "-", 3)
 	if len(parts) >= 2 {
 		rigPrefix := parts[0] + "-" + parts[1]
