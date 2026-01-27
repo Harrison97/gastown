@@ -5,25 +5,12 @@ The Refinery is the Engineer in the engine room. You process polecat branches, m
 
 **The Scotty Test**: Before proceeding past any failure, ask yourself: "Would Scotty walk past a warp core leak because it existed before his shift?"
 
-## Merge Strategies
-
-The Refinery uses different merge strategies based on repo ownership:
-
-| Repo Owner | Strategy | How |
-|------------|----------|-----|
-| You own it | PR workflow | `gh pr create` + `gh pr merge` |
-| Someone else owns it | Direct merge | `git merge --ff-only` + `git push` |
-
-**Why the difference?**
-- On your own repos, PRs provide a review record and CI integration
-- On repos where you're a collaborator, you have direct push access
-
 ## Merge Flow
 
 The Refinery receives MERGE_READY mail from Witnesses when polecats complete work:
 
 ```
-Witness                    Refinery                      Git/GitHub
+Witness                    Refinery                      Git
    │                          │                           │
    │ MERGE_READY              │                           │
    │─────────────────────────>│                           │
@@ -35,7 +22,7 @@ Witness                    Refinery                      Git/GitHub
    │                    (run tests)                       │
    │                          │                           │
    │                    (if pass)                         │
-   │                          │ merge (direct or PR)      │
+   │                          │ merge & push              │
    │                          │──────────────────────────>│
    │                          │                           │
    │ MERGED                   │                           │
@@ -46,7 +33,7 @@ Witness                    Refinery                      Git/GitHub
 After successful merge, Refinery sends MERGED mail back to Witness so it can
 complete cleanup (nuke the polecat worktree)."""
 formula = "mol-refinery-patrol"
-version = 5
+version = 4
 
 [[steps]]
 id = "inbox-check"
@@ -255,76 +242,20 @@ id = "merge-push"
 title = "Merge and push to main"
 needs = ["handle-failures"]
 description = """
-Merge to main. Strategy depends on repo ownership.
+Merge to main and push. CRITICAL: Notifications come IMMEDIATELY after push.
 
-**Step 0: Determine Merge Strategy**
-
-Check if you own the repo at origin:
-```bash
-ORIGIN=$(git remote get-url origin)
-# Extract owner from git@github.com:OWNER/repo or https://github.com/OWNER/repo
-OWNER=$(echo "$ORIGIN" | sed -E 's#.*(github\.com[:/])([^/]+)/.*#\2#')
-echo "Origin: $ORIGIN"
-echo "Owner: $OWNER"
-```
-
-Compare against your GitHub username (from `gh auth status` or git config):
-- If you ARE the owner → **PR workflow** (create PR for review/CI)
-- If you are NOT the owner → **Direct merge** (you're a collaborator with push access)
-
----
-
-## Strategy A: Direct Merge (repos you don't own)
-
-Use this for repos where you're a collaborator (someone else owns it).
-
+**Step 1: Merge and Push**
 ```bash
 git checkout main
 git merge --ff-only temp
 git push origin main
 ```
 
-Skip to **Post-Merge Steps** below.
+⚠️ **STOP HERE - DO NOT PROCEED UNTIL STEPS 2-3 COMPLETE**
 
----
+**Step 2: Send MERGED Notification (REQUIRED - DO THIS IMMEDIATELY)**
 
-## Strategy B: PR Workflow (repos you own)
-
-Use this for repos where you are the owner.
-
-**B1: Push the branch (if not already pushed)**
-```bash
-git checkout temp
-git push -u origin <polecat-branch>
-```
-
-**B2: Create the PR**
-```bash
-gh pr create --base main --head <polecat-branch> \
-  --title "<commit-title>" \
-  --body "Closes #<github-issue-number-if-any>
-
-Polecat: <polecat-name>
-MR Bead: <mr-bead-id>
-Issue: <issue-id>"
-```
-
-**B3: Merge the PR**
-```bash
-gh pr merge <polecat-branch> --merge --delete-branch
-```
-
-The `--delete-branch` flag handles remote branch cleanup.
-
----
-
-## Post-Merge Steps (REQUIRED for both strategies)
-
-⚠️ **DO NOT PROCEED UNTIL ALL STEPS COMPLETE**
-
-**Step 1: Send MERGED Notification**
-
-RIGHT NOW, before any other cleanup:
+RIGHT NOW, before any cleanup, send MERGED mail to Witness:
 
 ```bash
 gt mail send <rig>/witness -s "MERGED <polecat-name>" -m "Branch: <branch>
@@ -335,36 +266,40 @@ Merged-At: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 This signals the Witness to nuke the polecat worktree. WITHOUT THIS NOTIFICATION,
 POLECAT WORKTREES ACCUMULATE INDEFINITELY AND THE LIFECYCLE BREAKS.
 
-**Step 2: Close MR Bead**
+**Step 3: Close MR Bead (REQUIRED - DO THIS IMMEDIATELY)**
 
 ⚠️ **VERIFICATION BEFORE CLOSING**: Confirm the work is actually on main:
 ```bash
-git fetch origin main
+# Get the commit message/issue from the branch
 git log origin/main --oneline | grep "<issue-id>"
+# OR verify the commit SHA is on main:
+git branch --contains <commit-sha> | grep main
 ```
 
 If work is NOT on main, DO NOT close the MR bead. Investigate first.
 
 ```bash
-bd close <mr-bead-id> --reason "Merged to main at $(git rev-parse --short origin/main)"
+bd close <mr-bead-id> --reason "Merged to main at $(git rev-parse --short HEAD)"
 ```
 
-**Step 3: Archive the MERGE_READY mail**
+The MR bead ID was in the MERGE_READY message or find via:
+```bash
+bd list --type=merge-request --status=open | grep <polecat-name>
+```
+
+**VALIDATION**: The MR bead's source_issue should be a valid bead ID (gt-xxxxx),
+not a branch name. If source_issue contains a branch name, flag for investigation.
+
+**Step 4: Archive the MERGE_READY mail (REQUIRED)**
 ```bash
 gt mail archive <merge-ready-message-id>
 ```
+The message ID was tracked when you processed inbox-check.
 
-**Step 4: Cleanup (only after Steps 1-3 confirmed)**
-
-For direct merge strategy:
+**Step 5: Cleanup (only after Steps 2-4 confirmed)**
 ```bash
 git branch -d temp
 git push origin --delete <polecat-branch>
-```
-
-For PR strategy: Branch already deleted by `--delete-branch` flag.
-```bash
-git branch -d temp
 ```
 
 **VERIFICATION GATE**: You CANNOT proceed to loop-check without:

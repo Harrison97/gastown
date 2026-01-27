@@ -79,8 +79,16 @@ func getBeadInfo(beadID string) (*beadInfo, error) {
 // storeArgsInBead stores args in the bead's description using attached_args field.
 // This enables no-tmux mode where agents discover args via gt prime / bd show.
 func storeArgsInBead(beadID, args string) error {
+	// Resolve working directory for bd commands based on bead prefix routing
+	townRoot, err := workspace.FindFromCwd()
+	if err != nil {
+		return fmt.Errorf("finding town root: %w", err)
+	}
+	workDir := beads.ResolveHookDir(townRoot, beadID, "")
+
 	// Get the bead to preserve existing description content
 	showCmd := exec.Command("bd", "--no-daemon", "show", beadID, "--json", "--allow-stale")
+	showCmd.Dir = workDir
 	out, err := showCmd.Output()
 	if err != nil {
 		return fmt.Errorf("fetching bead: %w", err)
@@ -121,6 +129,7 @@ func storeArgsInBead(beadID, args string) error {
 
 	// Update the bead
 	updateCmd := exec.Command("bd", "--no-daemon", "update", beadID, "--description="+newDesc)
+	updateCmd.Dir = workDir
 	updateCmd.Stderr = os.Stderr
 	if err := updateCmd.Run(); err != nil {
 		return fmt.Errorf("updating bead description: %w", err)
@@ -136,10 +145,18 @@ func storeDispatcherInBead(beadID, dispatcher string) error {
 		return nil
 	}
 
+	// Resolve working directory for bd commands based on bead prefix routing
+	townRoot, err := workspace.FindFromCwd()
+	if err != nil {
+		return fmt.Errorf("finding town root: %w", err)
+	}
+	workDir := beads.ResolveHookDir(townRoot, beadID, "")
+
 	// Get the bead to preserve existing description content
 	// Uses --no-daemon with --allow-stale to avoid database sync race conditions
 	// when called immediately after bead creation (GH #30).
 	showCmd := exec.Command("bd", "--no-daemon", "show", beadID, "--json", "--allow-stale")
+	showCmd.Dir = workDir
 	out, err := showCmd.Output()
 	if err != nil {
 		return fmt.Errorf("fetching bead: %w", err)
@@ -169,6 +186,7 @@ func storeDispatcherInBead(beadID, dispatcher string) error {
 
 	// Update the bead
 	updateCmd := exec.Command("bd", "update", beadID, "--description="+newDesc)
+	updateCmd.Dir = workDir
 	updateCmd.Stderr = os.Stderr
 	if err := updateCmd.Run(); err != nil {
 		return fmt.Errorf("updating bead description: %w", err)
@@ -189,12 +207,20 @@ func storeAttachedMoleculeInBead(beadID, moleculeID string) error {
 		_ = os.WriteFile(logPath, []byte("called"), 0644)
 	}
 
+	// Resolve working directory for bd commands based on bead prefix routing
+	townRoot, err := workspace.FindFromCwd()
+	if err != nil {
+		return fmt.Errorf("finding town root: %w", err)
+	}
+	workDir := beads.ResolveHookDir(townRoot, beadID, "")
+
 	issue := &beads.Issue{}
 	if logPath == "" {
 		// Get the bead to preserve existing description content
 		// Uses --no-daemon with --allow-stale to avoid database sync race conditions
 		// when called immediately after bead creation (GH #30).
 		showCmd := exec.Command("bd", "--no-daemon", "show", beadID, "--json", "--allow-stale")
+		showCmd.Dir = workDir
 		out, err := showCmd.Output()
 		if err != nil {
 			return fmt.Errorf("fetching bead: %w", err)
@@ -231,6 +257,7 @@ func storeAttachedMoleculeInBead(beadID, moleculeID string) error {
 
 	// Update the bead
 	updateCmd := exec.Command("bd", "update", beadID, "--description="+newDesc)
+	updateCmd.Dir = workDir
 	updateCmd.Stderr = os.Stderr
 	if err := updateCmd.Run(); err != nil {
 		return fmt.Errorf("updating bead description: %w", err)
@@ -247,10 +274,18 @@ func storeNoMergeInBead(beadID string, noMerge bool) error {
 		return nil
 	}
 
+	// Resolve working directory for bd commands based on bead prefix routing
+	townRoot, err := workspace.FindFromCwd()
+	if err != nil {
+		return fmt.Errorf("finding town root: %w", err)
+	}
+	workDir := beads.ResolveHookDir(townRoot, beadID, "")
+
 	// Get the bead to preserve existing description content
 	// Uses --no-daemon with --allow-stale to avoid database sync race conditions
 	// when called immediately after bead creation (GH #30).
 	showCmd := exec.Command("bd", "--no-daemon", "show", beadID, "--json", "--allow-stale")
+	showCmd.Dir = workDir
 	out, err := showCmd.Output()
 	if err != nil {
 		return fmt.Errorf("fetching bead: %w", err)
@@ -280,6 +315,7 @@ func storeNoMergeInBead(beadID string, noMerge bool) error {
 
 	// Update the bead
 	updateCmd := exec.Command("bd", "update", beadID, "--description="+newDesc)
+	updateCmd.Dir = workDir
 	updateCmd.Stderr = os.Stderr
 	if err := updateCmd.Run(); err != nil {
 		return fmt.Errorf("updating bead description: %w", err)
