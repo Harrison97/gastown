@@ -1437,8 +1437,9 @@ func (f *LiveConvoyFetcher) FetchMayor() (*MayorStatus, error) {
 		IsAttached: false,
 	}
 
-	// Check if gt-mayor tmux session exists
-	stdout, err := runCmd(tmuxCmdTimeout, "tmux", "list-sessions", "-F", "#{session_name}:#{session_activity}")
+	// Check if hq-mayor tmux session exists and is attached
+	// Format: session_name|session_attached|session_activity
+	stdout, err := runCmd(tmuxCmdTimeout, "tmux", "list-sessions", "-F", "#{session_name}|#{session_attached}|#{session_activity}")
 	if err != nil {
 		// tmux not running or no sessions
 		return status, nil
@@ -1446,14 +1447,17 @@ func (f *LiveConvoyFetcher) FetchMayor() (*MayorStatus, error) {
 
 	lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
 	for _, line := range lines {
-		if strings.HasPrefix(line, "gt-mayor:") {
-			status.IsAttached = true
-			status.SessionName = "gt-mayor"
+		if strings.HasPrefix(line, "hq-mayor|") {
+			status.SessionName = "hq-mayor"
 
-			// Parse activity timestamp
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) == 2 {
-				if activityTs, ok := parseActivityTimestamp(parts[1]); ok {
+			// Parse line: hq-mayor|1|1234567890 or hq-mayor|0|1234567890
+			parts := strings.Split(line, "|")
+			if len(parts) >= 3 {
+				// Check if session is attached (1 = attached, 0 = detached)
+				status.IsAttached = parts[1] == "1"
+
+				// Parse activity timestamp
+				if activityTs, ok := parseActivityTimestamp(parts[2]); ok {
 					age := time.Since(time.Unix(activityTs, 0))
 					status.LastActivity = formatMailAge(age)
 					status.IsActive = age < 5*time.Minute

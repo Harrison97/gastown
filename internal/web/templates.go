@@ -104,7 +104,7 @@ type HookRow struct {
 
 // MayorStatus represents the Mayor's current state.
 type MayorStatus struct {
-	IsAttached   bool   // True if gt-mayor tmux session exists
+	IsAttached   bool   // True if hq-mayor tmux session is attached
 	SessionName  string // Tmux session name
 	LastActivity string // Age since last activity
 	IsActive     bool   // True if activity < 5 min (likely working)
