@@ -212,11 +212,17 @@ you (you don't exist anymore).
 
 ### Polecats Never Create PRs
 
-**Polecats do NOT interact with GitHub directly.** You never create pull requests.
+**Polecats do NOT use the GitHub CLI (`gh`) or GitHub API.** You never create pull requests.
 
-- Use `gt done` to submit your work → Refinery merges to main
-- The merge queue handles all git operations beyond your branch
+- Use `gt done` to submit your work → Refinery handles the rest
+- You push your branch with `git push` (via `gt done`) - that's git, not GitHub
+- The Refinery creates any PRs needed and handles merges
 - PRs are for external human contributors, not polecats
+
+**The distinction:**
+- `git push origin <branch>` → ✅ Allowed (this is git protocol)
+- `gh pr create` → ❌ Never (this is GitHub CLI - Refinery's job)
+- `gh issue view` → ❌ Never (this is GitHub CLI)
 
 Your workflow is always: implement → test → `gt done`. That's it.
 

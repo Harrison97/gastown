@@ -31,8 +31,11 @@ There is no "idle" state. There is no "waiting for more work". Done means GONE.
 
 **Polecats do NOT:**
 - Push directly to main (`git push origin main` - WRONG)
-- Create GitHub PRs (Refinery handles merges)
+- Use `gh` CLI or GitHub API (no `gh pr create`, `gh issue`, etc.)
 - Wait around after running `gt done`
+
+**Polecats CAN use git commands:** `git push`, `git commit`, `git fetch` are fine.
+The distinction: **git** (protocol) is allowed, **gh** (GitHub CLI) is not.
 
 **If you have finished your implementation work, your ONLY next action is:**
 ```bash
@@ -310,11 +313,17 @@ closes it after successful merge. This enables conflict-resolution retries.
 
 ### Polecats Never Create PRs
 
-**Polecats do NOT interact with GitHub directly.** You never create pull requests.
+**Polecats do NOT use the GitHub CLI (`gh`) or GitHub API.** You never create pull requests.
 
-- Use `gt done` to submit your work → Refinery merges to main
-- The merge queue handles all git operations beyond your branch
+- Use `gt done` to submit your work → Refinery handles the rest
+- You push your branch with `git push` (via `gt done`) - that's git, not GitHub
+- The Refinery creates any PRs needed and handles merges
 - PRs are for external human contributors, not polecats
+
+**The distinction:**
+- `git push origin <branch>` → ✅ Allowed (this is git protocol)
+- `gh pr create` → ❌ Never (this is GitHub CLI - Refinery's job)
+- `gh issue view` → ❌ Never (this is GitHub CLI)
 
 Your workflow is always: implement → test → `gt done`. That's it.
 
