@@ -89,6 +89,9 @@ func TestParseWispIDFromJSON(t *testing.T) {
 }
 
 func TestFormatTrackBeadID(t *testing.T) {
+	// Use temp directory to avoid picking up project's beads config
+	tmpDir := t.TempDir()
+
 	tests := []struct {
 		name     string
 		beadID   string
@@ -143,7 +146,7 @@ func TestFormatTrackBeadID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := formatTrackBeadID(tt.beadID)
+			result := formatTrackBeadID(tt.beadID, tmpDir)
 			if result != tt.expected {
 				t.Errorf("formatTrackBeadID(%q) = %q, want %q", tt.beadID, result, tt.expected)
 			}
@@ -155,6 +158,9 @@ func TestFormatTrackBeadID(t *testing.T) {
 // produced by formatTrackBeadID can be correctly parsed by the consumer pattern
 // used in convoy.go, model.go, feed/convoy.go, and web/fetcher.go.
 func TestFormatTrackBeadIDConsumerCompatibility(t *testing.T) {
+	// Use temp directory to avoid picking up project's beads config
+	tmpDir := t.TempDir()
+
 	// Consumer pattern from convoy.go:1062-1068:
 	// if strings.HasPrefix(issueID, "external:") {
 	//     parts := strings.SplitN(issueID, ":", 3)
@@ -187,7 +193,7 @@ func TestFormatTrackBeadIDConsumerCompatibility(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			formatted := formatTrackBeadID(tt.beadID)
+			formatted := formatTrackBeadID(tt.beadID, tmpDir)
 
 			// Simulate consumer parsing logic
 			parsed := formatted
