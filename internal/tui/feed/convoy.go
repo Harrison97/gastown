@@ -188,19 +188,8 @@ func getTrackedIssueStatus(beadsDir, convoyID string) []trackedStatus {
 
 	var tracked []trackedStatus
 	for _, dep := range deps {
-		issueID := dep.DependsOnID
-
-		// Handle external reference format: external:rig:issue-id
-		if strings.HasPrefix(issueID, "external:") {
-			parts := strings.SplitN(issueID, ":", 3)
-			if len(parts) == 3 {
-				issueID = parts[2]
-			}
-		}
-
-		// Get issue status
-		status := getIssueStatus(issueID)
-		tracked = append(tracked, trackedStatus{ID: issueID, Status: status})
+		status := getIssueStatus(dep.DependsOnID)
+		tracked = append(tracked, trackedStatus{ID: dep.DependsOnID, Status: status})
 	}
 
 	return tracked

@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -158,17 +157,10 @@ func loadTrackedIssues(townBeads, convoyID string) ([]IssueItem, int, int) {
 		return nil, 0, 0
 	}
 
-	// Collect issue IDs, handling external references
+	// Collect issue IDs
 	issueIDs := make([]string, 0, len(deps))
 	for _, dep := range deps {
-		issueID := dep.DependsOnID
-		if strings.HasPrefix(issueID, "external:") {
-			parts := strings.SplitN(issueID, ":", 3)
-			if len(parts) == 3 {
-				issueID = parts[2]
-			}
-		}
-		issueIDs = append(issueIDs, issueID)
+		issueIDs = append(issueIDs, dep.DependsOnID)
 	}
 
 	// Batch fetch all issue details in one call

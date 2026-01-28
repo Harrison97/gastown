@@ -111,26 +111,3 @@ func createAutoConvoy(beadID, beadTitle string) (string, error) {
 
 	return convoyID, nil
 }
-
-// formatTrackBeadID formats a bead ID for use in convoy tracking dependencies.
-// Local beads (matching configured issue prefix) are returned as-is.
-// Cross-rig beads are formatted as external references.
-func formatTrackBeadID(beadID string, townRoot string) string {
-	// Get configured prefix to check if this is a local bead
-	issuePrefix := getBeadsIssuePrefix(townRoot)
-	if issuePrefix != "" && strings.HasPrefix(beadID, issuePrefix+"-") {
-		return beadID // Local bead, return as-is
-	}
-	// Legacy: also check for hq- prefix
-	if strings.HasPrefix(beadID, "hq-") {
-		return beadID
-	}
-	// Cross-rig bead - format as external reference
-	parts := strings.SplitN(beadID, "-", 3)
-	if len(parts) >= 2 {
-		rigPrefix := parts[0] + "-" + parts[1]
-		return fmt.Sprintf("external:%s:%s", rigPrefix, beadID)
-	}
-	// Fallback for malformed IDs (single segment)
-	return beadID
-}
