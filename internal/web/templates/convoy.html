@@ -55,6 +55,27 @@
             border-bottom: 1px solid var(--border);
         }
 
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logout-btn {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-decoration: none;
+            padding: 4px 10px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .logout-btn:hover {
+            color: var(--text-secondary);
+            border-color: var(--text-muted);
+        }
+
         h1 {
             font-size: 1.25rem;
             font-weight: 600;
@@ -892,11 +913,14 @@
 <body>
     <div class="dashboard" hx-get="/" hx-trigger="every 10s" hx-swap="outerHTML">
         <header>
-            <h1>🚚 Gas Town Control Center</h1>
-            <span class="refresh-info">
-                Auto-refresh: 10s
-                <span class="htmx-indicator">⟳</span>
-            </span>
+            <h1>Gas Town Control Center</h1>
+            <div class="header-right">
+                <span class="refresh-info">
+                    Auto-refresh: 10s
+                    <span class="htmx-indicator">⟳</span>
+                </span>
+                <a href="/logout" class="logout-btn">Logout</a>
+            </div>
         </header>
 
         <!-- Mayor Status Banner -->

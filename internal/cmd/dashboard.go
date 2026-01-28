@@ -13,6 +13,8 @@ import (
 	"github.com/steveyegge/gastown/internal/workspace"
 )
 
+var dashboardNoAuth bool
+
 var (
 	dashboardPort int
 	dashboardOpen bool
@@ -42,12 +44,14 @@ func init() {
 	dashboardCmd.Flags().IntVar(&dashboardPort, "port", 8080, "HTTP port to listen on")
 	dashboardCmd.Flags().StringVar(&dashboardBind, "bind", "0.0.0.0", "Address to bind to (0.0.0.0 for all interfaces)")
 	dashboardCmd.Flags().BoolVar(&dashboardOpen, "open", false, "Open browser automatically")
+	dashboardCmd.Flags().BoolVar(&dashboardNoAuth, "no-auth", false, "Disable authentication (use with caution)")
 	rootCmd.AddCommand(dashboardCmd)
 }
 
 func runDashboard(cmd *cobra.Command, args []string) error {
 	// Verify we're in a workspace
-	if _, err := workspace.FindFromCwdOrError(); err != nil {
+	townRoot, err := workspace.FindFromCwdOrError()
+	if err != nil {
 		return fmt.Errorf("not in a Gas Town workspace: %w", err)
 	}
 
@@ -57,10 +61,35 @@ func runDashboard(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("creating convoy fetcher: %w", err)
 	}
 
-	// Create the handler
-	handler, err := web.NewConvoyHandler(fetcher)
+	// Create the convoy handler
+	convoyHandler, err := web.NewConvoyHandler(fetcher)
 	if err != nil {
 		return fmt.Errorf("creating convoy handler: %w", err)
+	}
+
+	// Determine the final handler based on auth mode
+	var handler http.Handler
+
+	if dashboardNoAuth {
+		// No authentication - serve convoy handler directly
+		fmt.Println("⚠️  Authentication disabled (--no-auth)")
+		handler = convoyHandler
+	} else {
+		// Create auth handler and register convoy handler as protected
+		authHandler, err := web.NewAuthHandler(townRoot)
+		if err != nil {
+			return fmt.Errorf("creating auth handler: %w", err)
+		}
+
+		// Register the convoy handler under the root path
+		authHandler.RegisterProtected("/", convoyHandler)
+		handler = authHandler
+
+		if authHandler.IsEnabled() {
+			fmt.Println("🔐 Authentication enabled")
+		} else {
+			fmt.Println("🔐 Authentication not configured - will prompt for setup")
+		}
 	}
 
 	// Build the bind address
