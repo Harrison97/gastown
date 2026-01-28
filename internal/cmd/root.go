@@ -55,6 +55,7 @@ var beadsExemptCommands = map[string]bool{
 	"dnd":        true,
 	"reload":     true,
 	"nuke":       true,
+	"krc":        true, // KRC doesn't require beads
 }
 
 // Commands exempt from the town root branch warning.
