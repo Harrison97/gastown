@@ -19,6 +19,7 @@ Thumbs.db
 
 # Claude Code local state
 .claude/
+.cockpit/
 
 # Test
 coverage.out
