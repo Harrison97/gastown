@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/steveyegge/gastown/internal/beads"
+	"github.com/steveyegge/gastown/internal/config"
 	"github.com/steveyegge/gastown/internal/style"
 	"github.com/steveyegge/gastown/internal/tmux"
 	"github.com/steveyegge/gastown/internal/workspace"
@@ -188,6 +190,49 @@ func runReset(cmd *cobra.Command, args []string) error {
 	} else {
 		fmt.Printf("  %s Recreated beads database\n", style.Bold.Render("✓"))
 	}
+
+	// Step 10: Restore town prefix and routing configuration
+	// Town beads use hq- prefix; this must be restored after db recreation
+	fmt.Println("Restoring routing configuration...")
+
+	// Restore hq- prefix for town beads
+	prefixCmd := exec.Command("bd", "config", "set", "issue_prefix", "hq")
+	prefixCmd.Dir = townRoot
+	if err := prefixCmd.Run(); err != nil {
+		fmt.Printf("  %s Could not restore town prefix: %v\n", style.Dim.Render("Warning:"), err)
+	}
+
+	// Restore allowed_prefixes for convoy beads (hq-cv-* IDs)
+	allowedCmd := exec.Command("bd", "config", "set", "allowed_prefixes", "hq,hq-cv")
+	allowedCmd.Dir = townRoot
+	if err := allowedCmd.Run(); err != nil {
+		fmt.Printf("  %s Could not restore allowed prefixes: %v\n", style.Dim.Render("Warning:"), err)
+	}
+
+	// Recreate routes.jsonl with town-level route
+	if err := beads.AppendRoute(townRoot, beads.Route{Prefix: "hq-", Path: "."}); err != nil {
+		fmt.Printf("  %s Could not restore town route: %v\n", style.Dim.Render("Warning:"), err)
+	}
+
+	// Restore rig routes from rigs.json
+	rigsPath := filepath.Join(townRoot, "mayor", "rigs.json")
+	if rigsConfig, err := config.LoadRigsConfig(rigsPath); err == nil {
+		for rigName, rig := range rigsConfig.Rigs {
+			if rig.BeadsConfig != nil && rig.BeadsConfig.Prefix != "" {
+				// Route to mayor/rig if it exists, otherwise to rig root
+				routePath := rigName
+				mayorRigBeads := filepath.Join(townRoot, rigName, "mayor", "rig", ".beads")
+				if _, err := os.Stat(mayorRigBeads); err == nil {
+					routePath = rigName + "/mayor/rig"
+				}
+				route := beads.Route{Prefix: rig.BeadsConfig.Prefix + "-", Path: routePath}
+				if err := beads.AppendRoute(townRoot, route); err != nil {
+					fmt.Printf("  %s Could not restore route for %s: %v\n", style.Dim.Render("Warning:"), rigName, err)
+				}
+			}
+		}
+	}
+	fmt.Printf("  %s Restored routing configuration\n", style.Bold.Render("✓"))
 
 	fmt.Println()
 	fmt.Printf("%s Gas Town reset to clean state\n", style.Bold.Render("✓"))
