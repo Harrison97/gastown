@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"os/exec"
 	"runtime"
@@ -15,6 +16,7 @@ import (
 var (
 	dashboardPort int
 	dashboardOpen bool
+	dashboardBind string
 )
 
 var dashboardCmd = &cobra.Command{
@@ -38,6 +40,7 @@ Example:
 
 func init() {
 	dashboardCmd.Flags().IntVar(&dashboardPort, "port", 8080, "HTTP port to listen on")
+	dashboardCmd.Flags().StringVar(&dashboardBind, "bind", "0.0.0.0", "Address to bind to (0.0.0.0 for all interfaces)")
 	dashboardCmd.Flags().BoolVar(&dashboardOpen, "open", false, "Open browser automatically")
 	rootCmd.AddCommand(dashboardCmd)
 }
@@ -60,20 +63,27 @@ func runDashboard(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("creating convoy handler: %w", err)
 	}
 
-	// Build the URL
-	url := fmt.Sprintf("http://localhost:%d", dashboardPort)
+	// Build the bind address
+	addr := fmt.Sprintf("%s:%d", dashboardBind, dashboardPort)
+	localURL := fmt.Sprintf("http://localhost:%d", dashboardPort)
 
 	// Open browser if requested
 	if dashboardOpen {
-		go openBrowser(url)
+		go openBrowser(localURL)
 	}
 
 	// Start the server with timeouts
-	fmt.Printf("🚚 Gas Town Dashboard starting at %s\n", url)
+	fmt.Printf("🚚 Gas Town Dashboard starting on %s\n", addr)
+	fmt.Printf("   Local:   %s\n", localURL)
+
+	// Show LAN IP for WSL/remote access
+	if lanIP := getLANIP(); lanIP != "" {
+		fmt.Printf("   Network: http://%s:%d\n", lanIP, dashboardPort)
+	}
 	fmt.Printf("   Press Ctrl+C to stop\n")
 
 	server := &http.Server{
-		Addr:              fmt.Sprintf(":%d", dashboardPort),
+		Addr:              addr,
 		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
@@ -97,4 +107,20 @@ func openBrowser(url string) {
 		return
 	}
 	_ = cmd.Start()
+}
+
+// getLANIP returns the first non-loopback IPv4 address, useful for WSL/LAN access.
+func getLANIP() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return ""
+	}
+	for _, addr := range addrs {
+		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String()
+			}
+		}
+	}
+	return ""
 }

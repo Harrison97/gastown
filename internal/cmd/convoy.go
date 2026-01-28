@@ -1495,12 +1495,16 @@ func getIssueDetailsBatch(issueIDs []string) map[string]*issueDetails {
 		return result
 	}
 
-	// Build args: bd --no-daemon show id1 id2 id3 ... --json
-	// Use --no-daemon to ensure fresh data (avoid stale cache from daemon)
-	args := append([]string{"--no-daemon", "show"}, issueIDs...)
+	// Build args: bd --no-daemon --allow-stale show id1 id2 id3 ... --json
+	// Use --no-daemon for direct access, --allow-stale for cross-database routing
+	args := append([]string{"--no-daemon", "--allow-stale", "show"}, issueIDs...)
 	args = append(args, "--json")
 
 	showCmd := exec.Command("bd", args...)
+	// Run from town root so bd can find routes.jsonl for cross-database resolution
+	if townRoot, err := workspace.FindFromCwd(); err == nil {
+		showCmd.Dir = townRoot
+	}
 	var stdout bytes.Buffer
 	showCmd.Stdout = &stdout
 
@@ -1543,8 +1547,12 @@ func getIssueDetailsBatch(issueIDs []string) map[string]*issueDetails {
 // Prefer getIssueDetailsBatch for multiple issues to avoid N+1 subprocess calls.
 func getIssueDetails(issueID string) *issueDetails {
 	// Use bd show with routing - it should find the issue in the right rig
-	// Use --no-daemon to ensure fresh data (avoid stale cache)
-	showCmd := exec.Command("bd", "--no-daemon", "show", issueID, "--json")
+	// Use --no-daemon for direct access, --allow-stale for cross-database routing
+	showCmd := exec.Command("bd", "--no-daemon", "--allow-stale", "show", issueID, "--json")
+	// Run from town root so bd can find routes.jsonl for cross-database resolution
+	if townRoot, err := workspace.FindFromCwd(); err == nil {
+		showCmd.Dir = townRoot
+	}
 	var stdout bytes.Buffer
 	showCmd.Stdout = &stdout
 
