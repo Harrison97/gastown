@@ -98,8 +98,8 @@ func createAutoConvoy(beadID, beadTitle string) (string, error) {
 	}
 
 	// Add tracking relation: convoy tracks the issue
-	trackBeadID := formatTrackBeadID(beadID, townRoot)
-	depArgs := []string{"--no-daemon", "dep", "add", convoyID, trackBeadID, "--type=tracks"}
+	// Use beadID directly - bd dep add handles cross-rig resolution via routes.jsonl
+	depArgs := []string{"--no-daemon", "dep", "add", convoyID, beadID, "--type=tracks"}
 	depCmd := exec.Command("bd", depArgs...)
 	depCmd.Dir = townRoot // Run from town root so bd can find config
 	depCmd.Stderr = os.Stderr
