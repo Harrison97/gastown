@@ -197,35 +197,28 @@ type trackedIssueInfo struct {
 
 // getTrackedIssues fetches tracked issues for a convoy.
 func (f *LiveConvoyFetcher) getTrackedIssues(convoyID string) []trackedIssueInfo {
-	dbPath := filepath.Join(f.townBeads, "beads.db")
-
-	// Query tracked dependencies from SQLite
-	safeConvoyID := strings.ReplaceAll(convoyID, "'", "''")
-	query := fmt.Sprintf(`SELECT depends_on_id, type FROM dependencies WHERE issue_id = '%s' AND type = 'tracks'`, safeConvoyID)
-	stdout, err := runCmd(cmdTimeout, "sqlite3", "-json", dbPath, query)
+	// Use bd dep list to get tracked issues (works across databases via routing)
+	// --no-daemon --allow-stale required for cross-database resolution
+	stdout, err := runBdCmd(f.townRoot, "--no-daemon", "--allow-stale", "dep", "list", convoyID, "--type=tracks", "--json")
 	if err != nil {
 		return nil
 	}
 
 	var deps []struct {
-		DependsOnID string `json:"depends_on_id"`
-		Type        string `json:"type"`
+		ID             string `json:"id"`
+		Title          string `json:"title"`
+		Status         string `json:"status"`
+		Assignee       string `json:"assignee"`
+		DependencyType string `json:"dependency_type"`
 	}
 	if err := json.Unmarshal(stdout.Bytes(), &deps); err != nil {
 		return nil
 	}
 
-	// Collect issue IDs (normalize external refs)
+	// Collect issue IDs
 	issueIDs := make([]string, 0, len(deps))
 	for _, dep := range deps {
-		issueID := dep.DependsOnID
-		if strings.HasPrefix(issueID, "external:") {
-			parts := strings.SplitN(issueID, ":", 3)
-			if len(parts) == 3 {
-				issueID = parts[2]
-			}
-		}
-		issueIDs = append(issueIDs, issueID)
+		issueIDs = append(issueIDs, dep.ID)
 	}
 
 	// Batch fetch issue details
@@ -269,16 +262,20 @@ type issueDetail struct {
 }
 
 // getIssueDetailsBatch fetches details for multiple issues.
+// Runs from town root so bd can find routes.jsonl for cross-database resolution.
 func (f *LiveConvoyFetcher) getIssueDetailsBatch(issueIDs []string) map[string]*issueDetail {
 	result := make(map[string]*issueDetail)
 	if len(issueIDs) == 0 {
 		return result
 	}
 
-	args := append([]string{"show"}, issueIDs...)
+	// --no-daemon --allow-stale required for cross-database resolution
+	args := []string{"--no-daemon", "--allow-stale", "show"}
+	args = append(args, issueIDs...)
 	args = append(args, "--json")
 
-	stdout, err := runCmd(cmdTimeout, "bd", args...)
+	// Run from town root so bd can find routes.jsonl for cross-database resolution
+	stdout, err := runBdCmd(f.townRoot, args...)
 	if err != nil {
 		return result
 	}

@@ -209,6 +209,22 @@ func runReset(cmd *cobra.Command, args []string) error {
 		fmt.Printf("  %s Could not restore allowed prefixes: %v\n", style.Dim.Render("Warning:"), err)
 	}
 
+	// Restore custom issue types for Gas Town
+	typesCmd := exec.Command("bd", "config", "set", "types.custom", "agent,role,rig,convoy,slot,queue,event,message,molecule,gate,merge-request")
+	typesCmd.Dir = townRoot
+	if err := typesCmd.Run(); err != nil {
+		fmt.Printf("  %s Could not restore custom types: %v\n", style.Dim.Render("Warning:"), err)
+	}
+
+	// Create empty issues.jsonl BEFORE routes.jsonl to prevent bd auto-export corruption.
+	// If issues.jsonl doesn't exist, bd writes issue data to routes.jsonl (first .jsonl it finds).
+	issuesPath := filepath.Join(townRoot, ".beads", "issues.jsonl")
+	if _, err := os.Stat(issuesPath); os.IsNotExist(err) {
+		if err := os.WriteFile(issuesPath, []byte{}, 0644); err != nil {
+			fmt.Printf("  %s Could not create issues.jsonl: %v\n", style.Dim.Render("Warning:"), err)
+		}
+	}
+
 	// Recreate routes.jsonl with town-level route
 	if err := beads.AppendRoute(townRoot, beads.Route{Prefix: "hq-", Path: "."}); err != nil {
 		fmt.Printf("  %s Could not restore town route: %v\n", style.Dim.Render("Warning:"), err)
