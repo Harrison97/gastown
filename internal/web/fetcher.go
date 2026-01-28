@@ -135,21 +135,20 @@ func (f *LiveConvoyFetcher) FetchConvoys() ([]ConvoyRow, error) {
 
 		row.Progress = fmt.Sprintf("%d/%d", row.Completed, row.Total)
 
-		// Calculate activity info from most recent worker activity
-		if !mostRecentActivity.IsZero() {
-			// Have active tmux session activity from assigned workers
-			row.LastActivity = activity.Calculate(mostRecentActivity)
+		// Calculate activity info - use whichever is more recent:
+		// tmux session activity OR issue updated_at
+		bestActivity := mostRecentActivity
+		if mostRecentUpdated.After(bestActivity) {
+			bestActivity = mostRecentUpdated
+		}
+
+		if !bestActivity.IsZero() {
+			row.LastActivity = activity.Calculate(bestActivity)
 		} else if !hasAssignee {
-			// No assignees found in beads - try fallback to any running polecat activity
-			// This handles cases where bd update --assignee didn't persist or wasn't returned
+			// No activity and no assignees - check for any running polecat
 			if polecatActivity := f.getAllPolecatActivity(); polecatActivity != nil {
 				info := activity.Calculate(*polecatActivity)
 				info.FormattedAge = info.FormattedAge + " (polecat active)"
-				row.LastActivity = info
-			} else if !mostRecentUpdated.IsZero() {
-				// Fall back to issue updated_at if no polecats running
-				info := activity.Calculate(mostRecentUpdated)
-				info.FormattedAge = info.FormattedAge + " (unassigned)"
 				row.LastActivity = info
 			} else {
 				row.LastActivity = activity.Info{
@@ -158,7 +157,6 @@ func (f *LiveConvoyFetcher) FetchConvoys() ([]ConvoyRow, error) {
 				}
 			}
 		} else {
-			// Has assignee but no active session
 			row.LastActivity = activity.Info{
 				FormattedAge: "idle",
 				ColorClass:   activity.ColorUnknown,
@@ -1331,32 +1329,31 @@ func (f *LiveConvoyFetcher) FetchSessions() ([]SessionRow, error) {
 		}
 
 		// Detect role from session name pattern: gt-<rig>-<role>[-<name>]
-		// Examples: gt-gastown-witness, gt-gastown-nux, gt-deacon
+		// Examples: gt-gastown-witness, gt-gastown-nux
+		// Skip utility sessions: gt-boot, gt-dashboard
 		nameParts := strings.Split(strings.TrimPrefix(name, "gt-"), "-")
-		if len(nameParts) >= 1 {
-			// Check for special roles
-			if nameParts[0] == "deacon" {
-				row.Role = "deacon"
-			} else if len(nameParts) >= 2 {
-				row.Rig = nameParts[0]
-				role := nameParts[1]
+		if len(nameParts) < 2 {
+			// Skip sessions without rig-role pattern (boot, dashboard, etc.)
+			continue
+		}
 
-				switch role {
-				case "witness":
-					row.Role = "witness"
-				case "refinery":
-					row.Role = "refinery"
-				default:
-					// Assume it's a polecat name
-					row.Role = "polecat"
-					row.Worker = role
-				}
+		row.Rig = nameParts[0]
+		role := nameParts[1]
 
-				// Check if there's a worker name after the role (for crew)
-				if len(nameParts) >= 3 && (role == "crew") {
-					row.Worker = nameParts[2]
-				}
-			}
+		switch role {
+		case "witness":
+			row.Role = "witness"
+		case "refinery":
+			row.Role = "refinery"
+		default:
+			// Assume it's a polecat name
+			row.Role = "polecat"
+			row.Worker = role
+		}
+
+		// Check if there's a worker name after the role (for crew)
+		if len(nameParts) >= 3 && role == "crew" {
+			row.Worker = nameParts[2]
 		}
 
 		rows = append(rows, row)
